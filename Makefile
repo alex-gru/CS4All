@@ -32,9 +32,9 @@ clean:
 	rm -rf selfie
 
 clean-win:
-	rm -rf *.m
-	rm -rf *.s
-	rm -rf selfie.exe
+	del *.m
+	del *.s
+	del selfie.exe
 
 A1:
 	make clean
