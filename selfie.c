@@ -1349,7 +1349,7 @@ int USAGE = 1;
 
 // ***EIFLES***
 int numProcesses = 1;   // number of concurrent processes to be executed
-
+int enable_Threads = 0; // flag to ensure that user binaries are executed in threads
 int selfie_argc = 0;
 int* selfie_argv = (int*) 0;
 
@@ -5613,7 +5613,7 @@ void implementCreate() {
 
 int hypster_create() {
 
-  printEifles("hypster_create()", "hypster created!!!");
+  //printEifles("hypster_create()", "hypster created!!!");
 
   // this procedure is only executed at boot level zero
   return doCreate(selfie_ID());
@@ -5621,7 +5621,7 @@ int hypster_create() {
 
 int selfie_create() {
   if (mipster){
-    printEifles("selfie_create()", "mipster created!!!");
+    //printEifles("selfie_create()", "mipster created!!!");
     return doCreate(selfie_ID());
   }
   else
@@ -7257,7 +7257,7 @@ int* allocateContext(int ID, int parentID) {
 int* createContext(int ID, int parentID, int* in) {
   int* context;
 
-  printIntegerEifles("createContext() with ID: ", ID);
+  //printIntegerEifles("createContext() with ID: ", ID);
 
   context = allocateContext(ID, parentID);
 
@@ -7606,7 +7606,7 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
 
     // println();
     // print((int*) "current selfie_ID() = ");
-    // printInteger(selfie_ID());
+     //printInteger(selfie_ID());
     // println();
 
     // println();
@@ -7627,7 +7627,7 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
       // switch to parent which is in charge of handling exceptions
       // [EIFLES] However, we need to check if there even exists a parent! Infinite loop without this check!!
 
-      printSimpleStringEifles("switch to parent!");
+      //printSimpleStringEifles("switch to parent!");
 
       toID = getParent(fromContext);
       if(findContext(toID, usedContexts) == (int*) 0) {
@@ -7642,7 +7642,7 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
       exceptionParameter = decodeExceptionParameter(savedStatus);
 
       if (exceptionNumber == EXCEPTION_PAGEFAULT) {
-        printSimpleStringEifles("EXCEPTION_PAGEFAULT");
+        //printSimpleStringEifles("EXCEPTION_PAGEFAULT");
 
         // has problem without new parameters, says: "is_user_process NOT SET"
         // if(checkIfHypsterIsHandlingExceptionOrExit() == NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING){
@@ -7658,7 +7658,7 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
         selfie_map(fromID, exceptionParameter, frame);
       } 
       else if (exceptionNumber == EXCEPTION_EXIT) {
-        printSimpleStringEifles("EXCEPTION_EXIT");
+        //printSimpleStringEifles("EXCEPTION_EXIT");
 
         // has problem without new parameters, says: "is_user_process NOT SET"
         // if(checkIfHypsterIsHandlingExceptionOrExit() == NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING){
@@ -7678,7 +7678,7 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
       }
       else if (exceptionNumber == EXCEPTION_SCHED_YIELD) {
       // else if (exceptionNumber == EXCEPTION_NOEXCEPTION) {
-        printSimpleStringEifles("EXCEPTION_SCHED_YIELD");
+        //printSimpleStringEifles("EXCEPTION_SCHED_YIELD");
 
         // has problem without new parameters, says: "is_user_process NOT SET"
         // if(checkIfHypsterIsHandlingExceptionOrExit() == NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING){
@@ -7705,7 +7705,7 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
         return -1;
       } 
       else {
-        printSimpleStringEifles("SOME OTHER EXCEPTION");
+        //printSimpleStringEifles("SOME OTHER EXCEPTION");
 
         // has problem without new parameters, says: "is_user_process NOT SET"
         // if(checkIfHypsterIsHandlingExceptionOrExit() == NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING){
@@ -7932,13 +7932,17 @@ void setNumProcesses() {
   printIntegerEifles("Set numProcesses", numProcesses);
 }
 
+void useThreads() {
+	enable_Threads = 1;
+}
+
 // round robin scheduler
 int runScheduler(int thisID) {
   int *thisContext;
   int *nextContext;
   int* current;
 
-  // print((int*) "DEBUG: runScheduler() called, return ");
+  //print((int*) "DEBUG: runScheduler() called, return ");
 
   thisContext = findContext(thisID, usedContexts);
   nextContext = getNextContext(thisContext);
@@ -7951,6 +7955,11 @@ int runScheduler(int thisID) {
       current = thisContext;
       while (getPrevContext(current) != (int*) 0) {
         current = getPrevContext(current);
+      }
+
+      // [EIFLES] Case 2 hypervisors are booted, take "2nd" hypervisor
+      if (getParent(current) == thisID) {
+        current = getNextContext(current);
       }
       return getID(current);
     }
@@ -8017,6 +8026,9 @@ int selfie() {
         setTimeslice();
       else if (stringCompare(option, (int*) "-numprocesses"))
         setNumProcesses();  
+      else if (stringCompare(option, (int*) "-t"))
+      	// [EIFLES] treat binaries as threads
+       	useThreads(); 
       else if (stringCompare(option, (int*) "-k")) {
         use_hypster = 1;
         return selfie_run(HYPSTER, MIPSTER, 0);
