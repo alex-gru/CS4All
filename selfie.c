@@ -1139,7 +1139,8 @@ int use_hypster = 0; // flag for forcing hypster rather than mipster
 // [EIFLES]
 int is_user_process = 0;  // flag for setting a process as user process
 
-int lockedID = -5; // [EIFLES] process ID than holds the lock, if no lock is aquired, set value to -5 (secure value area)
+int initialLockedID = -5; 
+int currentLockedID = -5; // [EIFLES] process ID than holds the lock, if no lock is aquired, set value to -5 (secure value area)
 
 // [EIFLES]
 int NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING = -7;
@@ -5202,6 +5203,9 @@ void emitLock() {
 
   createSymbolTableEntry(LIBRARY_TABLE, (int*) "lock", 0, PROCEDURE, INT_T, 0, binaryLength);
   
+  emitIFormat(OP_LW, REG_SP, REG_A0, 0); // processID
+  emitIFormat(OP_ADDIU, REG_SP, REG_SP, WORDSIZE);
+
   emitIFormat(OP_ADDIU, REG_ZR, REG_V0, SYSCALL_LOCK);
   emitRFormat(OP_SPECIAL, 0, 0, 0, FCT_SYSCALL);
   
@@ -5212,8 +5216,13 @@ void emitLock() {
 void emitUnlock() {
 
   createSymbolTableEntry(LIBRARY_TABLE, (int*) "unlock", 0, PROCEDURE, VOID_T, 0, binaryLength);
+  
+  emitIFormat(OP_LW, REG_SP, REG_A0, 0); // processiD
+  emitIFormat(OP_ADDIU, REG_SP, REG_SP, WORDSIZE);
+
   emitIFormat(OP_ADDIU, REG_ZR, REG_V0, SYSCALL_UNLOCK);
   emitRFormat(OP_SPECIAL, 0, 0, 0, FCT_SYSCALL);
+  
   // jump back to caller, return value is in REG_V0
   emitRFormat(OP_SPECIAL, REG_RA, 0, 0, FCT_JR);
 }
@@ -5238,38 +5247,39 @@ void implementLock() {
 
 	if (debug_locks) {
   		print((int*) "Lock() called by ");
-    	printInteger(*(registers+REG_A0));
-  		print((int*) " with current lockedID ");
-    	printInteger(lockedID);
+    	printInteger(processID);
+  		print((int*) " with currentLockedID ");
+    	printInteger(currentLockedID);
     	print((int*) "!");
     	println();
 	}
 
-	if (lockedID == -5) { // lock is available
+	if (currentLockedID == initialLockedID) { // lock is available
 		// set locked ID to the callers' processID
-		lockedID = processID;
+		currentLockedID = processID;
 
+		// set return value
+  	*(registers+REG_V0) = 1;
+
+  	if (debug_locks) {
+  		print((int*) "Process with ID ");
+    	printInteger(processID);
+    	print((int*) " now holds a global lock! currentLockedID value now is ");
+    	printInteger(currentLockedID);
+    	println();
+  	}
+	}
+	else { // lock is currently held by another process
 		// set return value
   	*(registers+REG_V0) = 0;
 
   	if (debug_locks) {
   		print((int*) "Process with ID ");
     	printInteger(processID);
-    	print((int*) " now holds a global lock!");
-    	println();
-  	}
-	}
-	else { // lock is currently held by another process
-		// set return value
-  	*(registers+REG_V0) = -1;
-
-  	if (debug_locks) {
-  		print((int*) "Process with ID ");
-    	printInteger(processID);
     	print((int*) " was not able to aquire the lock!");
     	println();
-    	print((int*) "Lock is currently held by process with iD ");
-  		printInteger(lockedID);
+    	print((int*) "Lock is currently held by process with ID ");
+  		printInteger(currentLockedID);
   		print((int*) "!");
   		println();
   	}
@@ -5284,20 +5294,20 @@ void implementUnlock() {
 	if (debug_locks) {
   		print((int*) "Unlock() called by ");
     	printInteger(processID);
-  		print((int*) " with current lockedID ");
-    	printInteger(lockedID);
+  		print((int*) " with currentLockedID ");
+    	printInteger(currentLockedID);
     	print((int*) "!");
     	println();
 	}
 
-	if (lockedID == processID) {	// [EIFLES] Check if process is allowed to unlock
-		lockedID = -5;
+	if (currentLockedID == processID) {	// [EIFLES] Check if process is allowed to unlock
+		currentLockedID = -5;
 
 		if (debug_locks) {
 	  		print((int*) "Process with ID ");
 	    	printInteger(processID);
-	  		print((int*) " has succesfully released its lock. New value for lockedID: ");
-	    	printInteger(lockedID);
+	  		print((int*) " has succesfully released its lock. New value for currentLockedID: ");
+	    	printInteger(currentLockedID);
 	    	println();
 		}
 	}
@@ -5306,8 +5316,8 @@ void implementUnlock() {
 		if (debug_locks) {
 	  		print((int*) "Process with ID ");
 	    	printInteger(processID);
-	  		print((int*) " falsely wanted to release the current lock with lockedID ");
-	    	printInteger(lockedID);
+	  		print((int*) " falsely wanted to release the current lock with currentLockedID ");
+	    	printInteger(currentLockedID);
 	    	println();
 		}
 	}

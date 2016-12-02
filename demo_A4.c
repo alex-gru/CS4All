@@ -7,34 +7,26 @@ int main(){
 	initLibrary();
 
 	procID = getpid();
-	println();
-	print((int*) "getpid result: ");
-	printInteger(procID);
-	println();
-	lockstatus = -1;
 
-	while (lockstatus != 0) {
+	//println();
+	//print((int*) "getpid result: ");
+	//printInteger(procID);
+	//println();
+	lockstatus = 0;
+
+	while (lockstatus != 1) {
 		lockstatus = lock(procID);
-		if (lockstatus == 0) {
-			println();
+		if (lockstatus == 1) {
 			print((int*) "YES, I got the lock!!");
 			println();
 		}
 		else {
-			println();
 			print((int*) "Damn, I have to wait!");
 			println();
 		}
+		println();
 		sched_yield();
 	}
-	//while(i < 5) {
-		//println();
-		//print((int*) "getpid result: ");
-		//printInteger(procID);
-		//sched_yield();
-		//println();
-		//i = i + 1;
-	//}
 	unlock(procID);
 	return 1;
 }
