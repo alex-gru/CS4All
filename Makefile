@@ -104,8 +104,8 @@ A4:
 	./selfie -c demo_A4.c selfie.c -o demo_A4.m 
 	./selfie -timeslice 77777 -numprocesses 5 -l test_program.m -m 32
 
-winA4:
+A4-win:
 	make clean-win
 	make
 	selfie.exe -c demo_A4.c selfie.c -o demo_A4.m 
-	selfie.exe -timeslice 77777 -numprocesses 5 -l demo_A4.m -m 32
+	selfie.exe -numprocesses 5 -l demo_A4.m -m 32

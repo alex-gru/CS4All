@@ -900,7 +900,7 @@ int debug_open   = 0;
 //[EIFLES] debugging for shared memory processing
 int debug_shm    = 0;   
 // [EIFLES] debugging for locking mechansim
-int debug_locks  = 0;
+int debug_locks  = 1;
 
 int debug_malloc = 0;
 
@@ -1138,6 +1138,8 @@ int use_hypster = 0; // flag for forcing hypster rather than mipster
 
 // [EIFLES]
 int is_user_process = 0;  // flag for setting a process as user process
+
+int lockedID = -5; // [EIFLES] process ID than holds the lock, if no lock is aquired, set value to -5 (secure value area)
 
 // [EIFLES]
 int NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING = -7;
@@ -5209,7 +5211,7 @@ void emitLock() {
 
 void emitUnlock() {
 
-  createSymbolTableEntry(LIBRARY_TABLE, (int*) "unlock", 0, PROCEDURE, INT_T, 0, binaryLength);
+  createSymbolTableEntry(LIBRARY_TABLE, (int*) "unlock", 0, PROCEDURE, VOID_T, 0, binaryLength);
   emitIFormat(OP_ADDIU, REG_ZR, REG_V0, SYSCALL_UNLOCK);
   emitRFormat(OP_SPECIAL, 0, 0, 0, FCT_SYSCALL);
   // jump back to caller, return value is in REG_V0
@@ -5217,17 +5219,98 @@ void emitUnlock() {
 }
 
 void implementGetPID() {
-	printSimpleStringEifles("getpid called!");
+	if (debug_locks) {
+  		print((int*) "getpid() called, now returning ");
+    	printInteger(getID(currentContext));
+    	print((int*) "!");
+    	println();
+	}
+
 	// set return value
   *(registers+REG_V0) = getID(currentContext);
 }
 
 void implementLock() {
 
+	int processID;
+
+	processID = *(registers+REG_A0);
+
+	if (debug_locks) {
+  		print((int*) "Lock() called by ");
+    	printInteger(*(registers+REG_A0));
+  		print((int*) " with current lockedID ");
+    	printInteger(lockedID);
+    	print((int*) "!");
+    	println();
+	}
+
+	if (lockedID == -5) { // lock is available
+		// set locked ID to the callers' processID
+		lockedID = processID;
+
+		// set return value
+  	*(registers+REG_V0) = 0;
+
+  	if (debug_locks) {
+  		print((int*) "Process with ID ");
+    	printInteger(processID);
+    	print((int*) " now holds a global lock!");
+    	println();
+  	}
+	}
+	else { // lock is currently held by another process
+		// set return value
+  	*(registers+REG_V0) = -1;
+
+  	if (debug_locks) {
+  		print((int*) "Process with ID ");
+    	printInteger(processID);
+    	print((int*) " was not able to aquire the lock!");
+    	println();
+    	print((int*) "Lock is currently held by process with iD ");
+  		printInteger(lockedID);
+  		print((int*) "!");
+  		println();
+  	}
+	}
 }
 
 void implementUnlock() {
+	int processID;
 
+	processID = *(registers+REG_A0);
+
+	if (debug_locks) {
+  		print((int*) "Unlock() called by ");
+    	printInteger(processID);
+  		print((int*) " with current lockedID ");
+    	printInteger(lockedID);
+    	print((int*) "!");
+    	println();
+	}
+
+	if (lockedID == processID) {	// [EIFLES] Check if process is allowed to unlock
+		lockedID = -5;
+
+		if (debug_locks) {
+	  		print((int*) "Process with ID ");
+	    	printInteger(processID);
+	  		print((int*) " has succesfully released its lock. New value for lockedID: ");
+	    	printInteger(lockedID);
+	    	println();
+		}
+	}
+
+	else {	// [EIFLES] Process is not owner of the lock --> releasing it is forbidden (and senseless)
+		if (debug_locks) {
+	  		print((int*) "Process with ID ");
+	    	printInteger(processID);
+	  		print((int*) " falsely wanted to release the current lock with lockedID ");
+	    	printInteger(lockedID);
+	    	println();
+		}
+	}
 }
 
 // ---------------------
@@ -7775,12 +7858,11 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
 
         toID = runScheduler(fromID);
         cycles = 0;
-        println();
-        print((int*) "[EXCEPTION_SCHED_YIELD, next_pid: ");
-        printInteger(toID);
-        print((int*) "]");
-        println();
-        println();
+        //println();
+        //print((int*) "[EXCEPTION_SCHED_YIELD, next_pid: ");
+        //printInteger(toID);
+        //print((int*) "]");
+        //println();
       }
       else if (exceptionNumber != EXCEPTION_TIMER) {
         print(binaryName);
