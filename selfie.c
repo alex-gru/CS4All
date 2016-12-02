@@ -5254,6 +5254,18 @@ void implementLock() {
     	println();
 	}
 
+	if (currentLockedID == processID) {	// process already has the lock
+		// set return value
+		*(registers+REG_V0) = 1;
+
+  	if (debug_locks) {
+  		print((int*) "Process with ID ");
+    	printInteger(processID);
+    	print((int*) " already holds the global lock!");
+    	println();
+  	}
+	}
+
 	if (currentLockedID == initialLockedID) { // lock is available
 		// set locked ID to the callers' processID
 		currentLockedID = processID;

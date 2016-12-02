@@ -26,7 +26,12 @@ int main(){
 		}
 		println();
 		sched_yield();
+		// [EIFLES] re-check if I got the lock --> improves mutual exclusion level
+		lockstatus = lock(procID);
 	}
+
+// That's our critical section
+
 	unlock(procID);
 	return 1;
 }
