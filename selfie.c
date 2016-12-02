@@ -850,6 +850,16 @@ void implementShmWrite();
 void emitShmRead();
 void implementShmRead();
 
+// ----------------
+// [EIFLES] Assignment 4
+void emitGetPID();
+void implementGetPID();
+void emitLock();
+void implementLock();
+void emitUnlock();
+void implementUnlock();
+// ----------------
+
 int* allocateShObj();
 int* allocateFD();
 int getNewFDId();
@@ -889,6 +899,8 @@ int debug_write  = 0;
 int debug_open   = 0;
 //[EIFLES] debugging for shared memory processing
 int debug_shm    = 0;   
+// [EIFLES] debugging for locking mechansim
+int debug_locks  = 0;
 
 int debug_malloc = 0;
 
@@ -905,6 +917,11 @@ int SYSCALL_SHM_SIZE= 4009;
 int SYSCALL_SHM_MAP= 4010;
 int SYSCALL_SHM_WRITE = 4011;
 int SYSCALL_SHM_READ = 4012;
+// [EIFLES] Assignment 4 Syscalls for getpid and locking mechanísm
+int SYSCALL_GETPID = 4013;
+int SYSCALL_LOCK = 4014;
+int SYSCALL_UNLOCK = 4015;
+
 
 int SYSCALL_MALLOC = 4045;
 
@@ -4133,6 +4150,10 @@ void selfie_compile() {
   emitShmMap();
   emitShmWrite();
   emitShmRead();
+  // [EIFLES] Assignment 4
+  emitGetPID();
+  emitLock();
+  emitUnlock();
 
   emitID();
   emitCreate();
@@ -4766,6 +4787,9 @@ void implementExit() {
   println();
 }
 
+// ---------------------
+// [EIFLES] Assignment 2
+
 void emitSchedYield() {
 
   createSymbolTableEntry(LIBRARY_TABLE, (int*) "sched_yield", 0, PROCEDURE, VOID_T, 0, binaryLength);
@@ -4774,6 +4798,14 @@ void emitSchedYield() {
   // jump back to caller, return value is in REG_V0
   emitRFormat(OP_SPECIAL, REG_RA, 0, 0, FCT_JR);
 }
+
+
+void implementSchedYield() {
+  throwException(EXCEPTION_SCHED_YIELD, 0);
+}
+
+// ---------------------
+// [EIFLES] Assignment 3
 
 void emitShmOpen() {
   createSymbolTableEntry(LIBRARY_TABLE, (int*) "shm_open", 0, PROCEDURE, INT_T, 0, binaryLength);
@@ -4859,10 +4891,6 @@ void emitShmRead() {
   emitRFormat(OP_SPECIAL, 0, 0, 0, FCT_SYSCALL);
 
   emitRFormat(OP_SPECIAL, REG_RA, 0, 0, FCT_JR);
-}
-
-void implementSchedYield() {
-  throwException(EXCEPTION_SCHED_YIELD, 0);
 }
 
 void implementShmOpen() {
@@ -5152,6 +5180,58 @@ void implementShmRead() {
     println();
   }
 }
+
+// ---------------------
+// [EIFLES] Assignment 4
+// TODO: ADAPT ALL METHODS!!!!
+
+void emitGetPID() {
+
+  createSymbolTableEntry(LIBRARY_TABLE, (int*) "getpid", 0, PROCEDURE, INT_T, 0, binaryLength);
+  
+  emitIFormat(OP_ADDIU, REG_ZR, REG_V0, SYSCALL_GETPID);
+  emitRFormat(OP_SPECIAL, 0, 0, 0, FCT_SYSCALL);
+  
+  // jump back to caller, return value is in REG_V0
+  emitRFormat(OP_SPECIAL, REG_RA, 0, 0, FCT_JR);
+}
+
+void emitLock() {
+
+  createSymbolTableEntry(LIBRARY_TABLE, (int*) "lock", 0, PROCEDURE, INT_T, 0, binaryLength);
+  
+  emitIFormat(OP_ADDIU, REG_ZR, REG_V0, SYSCALL_LOCK);
+  emitRFormat(OP_SPECIAL, 0, 0, 0, FCT_SYSCALL);
+  
+  // jump back to caller, return value is in REG_V0
+  emitRFormat(OP_SPECIAL, REG_RA, 0, 0, FCT_JR);
+}
+
+void emitUnlock() {
+
+  createSymbolTableEntry(LIBRARY_TABLE, (int*) "unlock", 0, PROCEDURE, INT_T, 0, binaryLength);
+  emitIFormat(OP_ADDIU, REG_ZR, REG_V0, SYSCALL_UNLOCK);
+  emitRFormat(OP_SPECIAL, 0, 0, 0, FCT_SYSCALL);
+  // jump back to caller, return value is in REG_V0
+  emitRFormat(OP_SPECIAL, REG_RA, 0, 0, FCT_JR);
+}
+
+void implementGetPID() {
+	printSimpleStringEifles("getpid called!");
+	// set return value
+  *(registers+REG_V0) = getID(currentContext);
+}
+
+void implementLock() {
+
+}
+
+void implementUnlock() {
+
+}
+
+// ---------------------
+
 
 void emitRead() {
   createSymbolTableEntry(LIBRARY_TABLE, (int*) "read", 0, PROCEDURE, INT_T, 0, binaryLength);
@@ -6061,6 +6141,14 @@ void fct_syscall() {
       implementShmWrite();
     else if (*(registers+REG_V0) == SYSCALL_SHM_READ) 
       implementShmRead();
+    // [EIFLES] Assignment 4
+    else if (*(registers+REG_V0) == SYSCALL_GETPID) 
+      implementGetPID();   
+    else if (*(registers+REG_V0) == SYSCALL_LOCK) 
+      implementLock();
+    else if (*(registers+REG_V0) == SYSCALL_UNLOCK) 
+      implementUnlock();
+
 
     else {
       pc = pc - WORDSIZE;

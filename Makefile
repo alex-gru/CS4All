@@ -55,7 +55,7 @@ A2:
 	./selfie -c test_program.c selfie.c -o test_program.m 
 	./selfie -l test_program.m -m 32
 
-# Assignment 3: Shared memory #
+# Assignment 3: Shared memory and hypster handing #
 A3-no-exit:
 	make clean
 	make
@@ -96,3 +96,16 @@ A3-posix-win:
 	make
 	selfie.exe -c demo_A3-posix.c selfie.c -o demo_A3-posix.m 
 	selfie.exe -timeslice 77777 -numprocesses 5 -l demo_A3-posix.m -m 32
+
+# Assignment 4: Locking mechanism; mutial exclusion #
+A4:
+	make clean
+	make
+	./selfie -c demo_A4.c selfie.c -o demo_A4.m 
+	./selfie -timeslice 77777 -numprocesses 5 -l test_program.m -m 32
+
+winA4:
+	make clean-win
+	make
+	selfie.exe -c demo_A4.c selfie.c -o demo_A4.m 
+	selfie.exe -timeslice 77777 -numprocesses 5 -l demo_A4.m -m 32
