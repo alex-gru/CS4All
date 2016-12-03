@@ -1145,9 +1145,9 @@ int currentLockedID = -5; // [EIFLES] process ID than holds the lock, if no lock
 // [EIFLES]
 int NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING = -7;
 
-int interpret = 0; // flag for executing or disassembling code
+int interpret = 1; // flag for executing or disassembling code
 
-int debug = 0; // flag for logging code execution
+int debug = 1; // flag for logging code execution
 
 int  calls           = 0;        // total number of executed procedure calls
 int* callsPerAddress = (int*) 0; // number of executed calls of each procedure
@@ -1235,6 +1235,9 @@ void freeContext(int* context);
 int* deleteContext(int* context, int* from);
 
 void mapPage(int* table, int page, int frame);
+
+// [EIFLES]
+void restoreMachineStateForProcesses(int* from, int* to);
 
 // context struct:
 // +---+--------+
@@ -6629,7 +6632,6 @@ void fct_divu() {
   if (interpret) {
     reg_lo = *(registers+rs) / *(registers+rt);
     reg_hi = *(registers+rs) % *(registers+rt);
-
     pc = pc + WORDSIZE;
   }
 
@@ -6948,15 +6950,13 @@ void fetch() {
   // assert: isVirtualAddressMapped(pt, pc) == 1
 
   //ir = loadVirtualMemory(pt, pc);
-  if(enable_Threads){
+  //if(enable_Threads){
     // load from shared code segment if threads are used
-
-    // codePT ???
-    ir = loadVirtualMemory(codePT, pc);
-  }
-  else{
+  //  ir = loadVirtualMemory(codePT, pc);
+  //}
+  //else{
     ir = loadVirtualMemory(pt, pc);
-  }
+  //}
 }
 
 void execute() {
@@ -7462,7 +7462,7 @@ int* allocateContext(int ID, int parentID) {
 int* createContext(int ID, int parentID, int* in) {
   int* context;
 
-  //printIntegerEifles("createContext() with ID: ", ID);
+  printIntegerEifles("createContext() with ID: ", ID);
 
   context = allocateContext(ID, parentID);
 
@@ -7490,7 +7490,45 @@ int* findContext(int ID, int* in) {
 }
 
 void switchContext(int* from, int* to) {
+  int tempThread;
+
+  println();
+  print((int*) "switchContext() called!!!");
+  println();
+
   // save machine state
+
+  // switch from one process/thread to another
+  //if(to > -1){
+    // we are dealing with threads
+    if(enable_Threads){
+      printIntegerEifles("WE ARE DEALING WITH THREADS", 1);
+
+      tempThread = findContext(from, usedContexts);
+
+      setPC(tempThread, pc);
+      setRegHi(tempThread, reg_hi);
+      setRegLo(tempThread, reg_lo);
+      setBreak(from, brk);
+
+      pc        = getPC(tempThread);
+      registers = getRegs(tempThread);
+      reg_hi    = getRegHi(tempThread);
+      reg_lo    = getRegLo(tempThread);
+      pt        = getPT(to);
+      brk       = getBreak(to);
+    }
+    // we are handling processes -> business as usual
+    else{
+      restoreMachineStateForProcesses(from, to);
+    }
+  //}
+  //else{
+  //  restoreMachineStateForProcesses(from, to);
+  //}
+}
+
+void restoreMachineStateForProcesses(int* from, int* to){
   setPC(from, pc);
   setRegHi(from, reg_hi);
   setRegLo(from, reg_lo);
@@ -8055,8 +8093,11 @@ int boot(int argc, int* argv) {
         println();
 
         codePT = getPT(usedContexts);
-        up_loadBinary(getPT(usedContexts));
+        up_loadBinary(codePT);
       }
+    }
+    else{
+      up_loadBinary(getPT(usedContexts));
     }
 
     up_loadArguments(getPT(usedContexts), argc, argv);
