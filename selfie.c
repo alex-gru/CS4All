@@ -1368,8 +1368,11 @@ int USAGE = 1;
 // ------------------------ GLOBAL VARIABLES -----------------------
 
 // ***EIFLES***
-int numProcesses = 1;   // number of concurrent processes to be executed
+int numProcessesOrThreads = 1;   // number of concurrent processes or threads to be executed
 int enable_Threads = 0; // flag to ensure that user binaries are executed in threads
+
+int* codePT; // address of the code segment (shared between threads)
+
 int selfie_argc = 0;
 int* selfie_argv = (int*) 0;
 
@@ -6944,7 +6947,16 @@ void fetch() {
   // assert: isValidVirtualAddress(pc) == 1
   // assert: isVirtualAddressMapped(pt, pc) == 1
 
-  ir = loadVirtualMemory(pt, pc);
+  //ir = loadVirtualMemory(pt, pc);
+  if(enable_Threads){
+    // load from shared code segment if threads are used
+
+    // codePT ???
+    ir = loadVirtualMemory(codePT, pc);
+  }
+  else{
+    ir = loadVirtualMemory(pt, pc);
+  }
 }
 
 void execute() {
@@ -7585,6 +7597,10 @@ void pfree(int* frame) {
 void up_loadBinary(int* table) {
   int vaddr;
 
+  println();
+  print((int*) "up_loadBinary() called!!!");
+  println();
+
   // binaries start at lowest virtual address
   vaddr = 0;
 
@@ -7994,7 +8010,7 @@ int bootminmob(int argc, int* argv, int machine) {
 int boot(int argc, int* argv) {
   // works with mipsters and hypsters
   int exitCode;
-  int processIndex;
+  int processOrThreadIndex;
   int nextID;
 
   print(selfieName);
@@ -8015,24 +8031,40 @@ int boot(int argc, int* argv) {
 
   resetMicrokernel();
 
-  processIndex = 0;
+  processOrThreadIndex = 0;
 
-  while (processIndex < numProcesses) {
+  while (processOrThreadIndex < numProcessesOrThreads) {
     // create initial context on microkernel boot level
     nextID = selfie_create();
 
-    if (usedContexts == (int*) 0)
+    if (usedContexts == (int*) 0){
       // create duplicate of the initial context on our boot level
       usedContexts = createContext(nextID, selfie_ID(), (int*) 0);
+    }
 
-    up_loadBinary(getPT(usedContexts));
+    println();
+    print((int*) "getPT(usedContexts) = ");
+    printBinary(getPT(usedContexts), 32);
+    println();
+
+    // [EIFLES] if threads are used: only upload binary to code segment of first thread; all threads share this code segment
+    if(enable_Threads){
+      if(processOrThreadIndex == 0){
+        println();
+        print((int*) "enable_Threads AND processOrThreadIndex == 0");
+        println();
+
+        codePT = getPT(usedContexts);
+        up_loadBinary(getPT(usedContexts));
+      }
+    }
 
     up_loadArguments(getPT(usedContexts), argc, argv);
 
     // propagate page table of initial context to microkernel boot level
     down_mapPageTable(usedContexts);
 
-    processIndex = processIndex + 1;
+    processOrThreadIndex = processOrThreadIndex + 1;
   }
 
   // mipsters and hypsters handle page faults
@@ -8120,13 +8152,22 @@ void setTimeslice() {
 }
 
 void setNumProcesses() {
-  numProcesses = atoi(getArgument());
-  printIntegerEifles("Set numProcesses", numProcesses);
+  numProcessesOrThreads = atoi(getArgument());
+  printIntegerEifles("Set numProcesses", numProcessesOrThreads);
 }
 
-void useThreads() {
-	enable_Threads = 1;
+void setNumProcessesOrThreads() {
+  enable_Threads = 1;
+  numProcessesOrThreads = atoi(getArgument());
+  println();
+  print((int*) "numProcessesOrThreads = ");
+  printInteger(numProcessesOrThreads);
+  println();
 }
+
+//void useThreads() {
+//	enable_Threads = 1;
+//}
 
 // round robin scheduler
 int runScheduler(int thisID) {
@@ -8218,9 +8259,11 @@ int selfie() {
         setTimeslice();
       else if (stringCompare(option, (int*) "-numprocesses"))
         setNumProcesses();  
-      else if (stringCompare(option, (int*) "-t"))
+      else if (stringCompare(option, (int*) "-numthreads")){
       	// [EIFLES] treat binaries as threads
-       	useThreads(); 
+       	//useThreads();
+        setNumProcessesOrThreads();
+      }
       else if (stringCompare(option, (int*) "-k")) {
         use_hypster = 1;
         return selfie_run(HYPSTER, MIPSTER, 0);

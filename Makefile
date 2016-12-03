@@ -97,12 +97,12 @@ A3-posix-win:
 	selfie.exe -c demo_A3-posix.c selfie.c -o demo_A3-posix.m 
 	selfie.exe -timeslice 77777 -numprocesses 5 -l demo_A3-posix.m -m 32
 
-# Assignment 4: Locking mechanism; mutial exclusion #
+# Assignment 4: Locking mechanism; mutual exclusion
 A4:
 	make clean
 	make
 	./selfie -c demo_A4.c selfie.c -o demo_A4.m 
-	./selfie -timeslice 77777 -numprocesses 5 -l test_program.m -m 32
+	./selfie -timeslice 77777 -numthreads 5 -l demo_A4.m -m 32
 
 A4-win:
 	make clean-win
