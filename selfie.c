@@ -900,7 +900,7 @@ int debug_open   = 0;
 //[EIFLES] debugging for shared memory processing
 int debug_shm    = 0;   
 // [EIFLES] debugging for locking mechansim
-int debug_locks  = 1;
+int debug_locks  = 0;
 
 int debug_malloc = 0;
 
@@ -1147,7 +1147,7 @@ int NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING = -7;
 
 int interpret = 1; // flag for executing or disassembling code
 
-int debug = 1; // flag for logging code execution
+int debug = 0; // flag for logging code execution
 
 int  calls           = 0;        // total number of executed procedure calls
 int* callsPerAddress = (int*) 0; // number of executed calls of each procedure
@@ -7874,8 +7874,6 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
       // switch to parent which is in charge of handling exceptions
       // [EIFLES] However, we need to check if there even exists a parent! Infinite loop without this check!!
 
-      //printSimpleStringEifles("switch to parent!");
-
       toID = getParent(fromContext);
       if(findContext(toID, usedContexts) == (int*) 0) {
         return 0;
@@ -7924,7 +7922,6 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
         }
       }
       else if (exceptionNumber == EXCEPTION_SCHED_YIELD) {
-      // else if (exceptionNumber == EXCEPTION_NOEXCEPTION) {
         //printSimpleStringEifles("EXCEPTION_SCHED_YIELD");
 
         // has problem without new parameters, says: "is_user_process NOT SET"
@@ -8086,8 +8083,8 @@ int boot(int argc, int* argv) {
     println();
 
     // [EIFLES] if threads are used: only upload binary to code segment of first thread; all threads share this code segment
-    if(enable_Threads){
-      if(processOrThreadIndex == 0){
+    if (enable_Threads) {
+      if (processOrThreadIndex == 0) {
         println();
         print((int*) "enable_Threads AND processOrThreadIndex == 0");
         println();

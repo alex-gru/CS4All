@@ -97,15 +97,27 @@ A3-posix-win:
 	selfie.exe -c demo_A3-posix.c selfie.c -o demo_A3-posix.m 
 	selfie.exe -timeslice 77777 -numprocesses 5 -l demo_A3-posix.m -m 32
 
-# Assignment 4: Locking mechanism; mutual exclusion
-A4:
+# Assignment 4: Locking mechanism; mutual exclusion; threads
+A4-locking:
 	make clean
 	make
-	./selfie -c demo_A4.c selfie.c -o demo_A4.m 
-	./selfie -timeslice 77777 -numthreads 5 -l demo_A4.m -m 32
+	./selfie -c demo_A4_locking.c selfie.c -o demo_A4_locking.m 
+	./selfie -timeslice 77777 -numthreads 5 -l demo_A4_locking.m -m 32
 
-A4-win:
+A4-locking-win:
 	make clean-win
 	make
-	selfie.exe -c demo_A4.c selfie.c -o demo_A4.m 
-	selfie.exe -numprocesses 5 -l demo_A4.m -m 32
+	selfie.exe -c demo_A4_locking.c selfie.c -o demo_A4_locking.m 
+	selfie.exe -numprocesses 5 -l demo_A4_locking.m -m 32
+
+A4-threads:
+	make clean
+	make
+	./selfie -c demo_A4_threads.c selfie.c -o demo_A4_threads.m 
+	./selfie -timeslice 77777 -numthreads 5 -l demo_A4_threads.m -m 32
+
+A4-threads-win:
+	make clean-win
+	make
+	selfie.exe -c demo_A4_threads.c selfie.c -o demo_A4_threads.m 
+	selfie.exe -numprocesses 5 -l demo_A4_threads.m -m 32
