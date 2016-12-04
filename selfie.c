@@ -1236,9 +1236,6 @@ int* deleteContext(int* context, int* from);
 
 void mapPage(int* table, int page, int frame);
 
-// [EIFLES]
-void restoreMachineStateForProcesses(int* from, int* to);
-
 // context struct:
 // +---+--------+
 // | 0 | next   | pointer to next context
@@ -7500,46 +7497,16 @@ int* findContext(int ID, int* in) {
   return (int*) 0;
 }
 
-void switchContext(int* from, int* to) {
-  int tempThread;
+void switchContext(int* from, int* to){
 
+	printSimpleStringEifles("switchContext Called, getPT(from):");
+	println();
+  printBinary(getPT(from), 32);
+	printSimpleStringEifles("switchContext Called, getPT(to):");
+	println();
+  printBinary(getPT(to), 32);
   println();
-  print((int*) "switchContext() called!!!");
-  println();
 
-  // save machine state
-
-  // switch from one process/thread to another
-  //if(to > -1){
-    // we are dealing with threads
-    if(enable_Threads){
-      printIntegerEifles("WE ARE DEALING WITH THREADS", 1);
-
-      tempThread = findContext(from, usedContexts);
-
-      setPC(tempThread, pc);
-      setRegHi(tempThread, reg_hi);
-      setRegLo(tempThread, reg_lo);
-      setBreak(from, brk);
-
-      pc        = getPC(tempThread);
-      registers = getRegs(tempThread);
-      reg_hi    = getRegHi(tempThread);
-      reg_lo    = getRegLo(tempThread);
-      pt        = getPT(to);
-      brk       = getBreak(to);
-    }
-    // we are handling processes -> business as usual
-    else{
-      restoreMachineStateForProcesses(from, to);
-    }
-  //}
-  //else{
-  //  restoreMachineStateForProcesses(from, to);
-  //}
-}
-
-void restoreMachineStateForProcesses(int* from, int* to){
   setPC(from, pc);
   setRegHi(from, reg_hi);
   setRegLo(from, reg_lo);
@@ -7690,7 +7657,7 @@ void up_loadArguments(int* table, int argc, int* argv) {
 
   // [EIFLES] If threads are enabled, share Stack with offset
   if (enable_Threads) {
-  	  SP = VIRTUALMEMORYSIZE - (threadIndex * 100 * WORDSIZE) - WORDSIZE;
+  	  SP = VIRTUALMEMORYSIZE - (threadIndex * 50 * WORDSIZE) - WORDSIZE;
   }
   else {
   	// arguments are pushed onto stack which starts at highest virtual address
@@ -8093,25 +8060,12 @@ int boot(int argc, int* argv) {
       // create duplicate of the initial context on our boot level
       usedContexts = createContext(nextID, selfie_ID(), (int*) 0);
     }
-    	println();
-    	print((int*) "getPT(usedContexts) = ");
-    	printBinary(getPT(usedContexts), 32);
-    	println();
+    	//println();
+    	//print((int*) "getPT(usedContexts) = ");
+    	//printBinary(getPT(usedContexts), 32);
+    	//println();
 
-    // [EIFLES] if threads are used: only upload binary to code segment of first thread; all threads share this code segment
-    //if (enable_Threads) {
-      //if (processOrThreadIndex == 0) {
-        //println();
-        //print((int*) "enable_Threads AND processOrThreadIndex == 0");
-        //println();
-
-        //codePT = getPT(usedContexts);
-        //up_loadBinary(codePT);
-      //}
-    //}
-    //else{
-      up_loadBinary(getPT(usedContexts));
-    //}
+    up_loadBinary(getPT(usedContexts));
 
     up_loadArguments(getPT(usedContexts), argc, argv);
 

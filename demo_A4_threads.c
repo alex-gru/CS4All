@@ -10,5 +10,9 @@ int main(){
 	printInteger(i);
 	println();
 
+	sched_yield();
+	print("After sched_yield");
+	println();
+	
 	return 1;
 }
