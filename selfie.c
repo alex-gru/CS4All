@@ -8065,7 +8065,14 @@ int boot(int argc, int* argv) {
     	//printBinary(getPT(usedContexts), 32);
     	//println();
 
-    up_loadBinary(getPT(usedContexts));
+    if(enable_Threads){
+      if(threadIndex == 0){
+        up_loadBinary(getPT(usedContexts));
+      }
+    }
+    else {
+      up_loadBinary(getPT(usedContexts));
+    }
 
     up_loadArguments(getPT(usedContexts), argc, argv);
 
