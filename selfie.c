@@ -1373,7 +1373,7 @@ int USAGE = 1;
 // ***EIFLES***
 int numProcessesOrThreads = 1;   // number of concurrent processes or threads to be executed
 int enable_Threads = 0; // flag to ensure that user binaries are executed in threads
-int threadIndex = 0;;
+int threadIndex = 0;
 
 int* codePT; // address of the code segment (shared between threads)
 
@@ -7451,7 +7451,7 @@ int* allocateContext(int ID, int parentID) {
   // allocate zeroed memory for page table
   // TODO: save and reuse memory for page table
   if (enable_Threads) {
-  	if (threadIndex = 0) { // [EIFLES] first thread gets the whole Pagetable
+  	if (threadIndex == 0) { // [EIFLES] first thread gets the whole Pagetable
   		setPT(context, zalloc(VIRTUALMEMORYSIZE / PAGESIZE * WORDSIZE));
   	}
   	else { // [EIFLES] other threads get reference to it --> code heap shared, Stack segmented
@@ -7646,9 +7646,9 @@ void pfree(int* frame) {
 void up_loadBinary(int* table) {
   int vaddr;
 
-  println();
-  print((int*) "up_loadBinary() called!!!");
-  println();
+  //println();
+  //print((int*) "up_loadBinary() called!!!");
+  //println();
 
   // binaries start at lowest virtual address
   vaddr = 0;
@@ -7688,8 +7688,14 @@ void up_loadArguments(int* table, int argc, int* argv) {
   int i_argc;
   int i_vargv;
 
-  // arguments are pushed onto stack which starts at highest virtual address
-  SP = VIRTUALMEMORYSIZE - WORDSIZE;
+  // [EIFLES] If threads are enabled, share Stack with offset
+  if (enable_Threads) {
+  	  SP = VIRTUALMEMORYSIZE - (threadIndex * 100 * WORDSIZE) - WORDSIZE;
+  }
+  else {
+  	// arguments are pushed onto stack which starts at highest virtual address
+  	SP = VIRTUALMEMORYSIZE - WORDSIZE;
+	}
 
   // allocate memory for storing stack pointer later
   SP = SP - WORDSIZE;
@@ -8087,11 +8093,10 @@ int boot(int argc, int* argv) {
       // create duplicate of the initial context on our boot level
       usedContexts = createContext(nextID, selfie_ID(), (int*) 0);
     }
-
-    println();
-    print((int*) "getPT(usedContexts) = ");
-    printBinary(getPT(getNextContext(usedContexts)), 32);
-    println();
+    	println();
+    	print((int*) "getPT(usedContexts) = ");
+    	printBinary(getPT(usedContexts), 32);
+    	println();
 
     // [EIFLES] if threads are used: only upload binary to code segment of first thread; all threads share this code segment
     //if (enable_Threads) {
