@@ -11,6 +11,8 @@ int main(){
 	println();
 	printInteger(i);
 	println();
+	printInteger(44);
+	println();
 
 	//procID = getpid();
 

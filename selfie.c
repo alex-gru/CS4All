@@ -1145,9 +1145,9 @@ int currentLockedID = -5; // [EIFLES] process ID than holds the lock, if no lock
 // [EIFLES]
 int NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING = -7;
 
-int interpret = 1; // flag for executing or disassembling code
+int interpret = 0; // flag for executing or disassembling code
 
-int debug = 1; // flag for logging code execution
+int debug = 0; // flag for logging code execution
 
 int  calls           = 0;        // total number of executed procedure calls
 int* callsPerAddress = (int*) 0; // number of executed calls of each procedure
@@ -1238,6 +1238,7 @@ void mapPage(int* table, int page, int frame);
 
 // [EIFLES]
 void restoreMachineStateForProcesses(int* from, int* to);
+int* allocateRegularContext(int ID, int parentID);
 
 // context struct:
 // +---+--------+
@@ -1374,7 +1375,10 @@ int USAGE = 1;
 int numProcessesOrThreads = 1;   // number of concurrent processes or threads to be executed
 int enable_Threads = 0; // flag to ensure that user binaries are executed in threads
 
+int createdContextAtLeastOnce = 0;  // flag for keeping track of first context (for thread/process) created
+
 int* codePT; // address of the code segment (shared between threads)
+int* mainThreadContext;  // thread context containing the code and heap to which all other threads point to
 
 int selfie_argc = 0;
 int* selfie_argv = (int*) 0;
@@ -7423,10 +7427,46 @@ int createID(int seed) {
 }
 
 int* allocateContext(int ID, int parentID) {
+  int* tempContext;
+
+  // working with threads
+  if(enable_Threads){
+    // first thread = mainThread
+    if(ID == 0){
+      println();
+      print((int*) "Creating mainThread with ID: ");
+      printInteger(ID);
+      println();
+      mainThreadContext = allocateRegularContext(ID, parentID);
+      return mainThreadContext;
+    }
+    else{
+      println();
+      print((int*) "Creating additional thread with ID ");
+      printInteger(ID);
+      println();
+      // every other thread shares resources (except stack) with mainThread
+      tempContext = mainThreadContext;
+      // return context same as mainThreadContext, but:
+      // ID should be different
+      setID(tempContext, ID);
+      // have their own PC
+      setPC(tempContext, 0);
+      return tempContext;
+    }
+  }
+  else{
+    // working with regular processes: business as usual
+    return allocateRegularContext(ID, parentID);
+  }
+}
+
+int* allocateRegularContext(int ID, int parentID){
   int* context;
 
-  if (freeContexts == (int*) 0)
+  if (freeContexts == (int*) 0){
     context = malloc(4 * SIZEOFINTSTAR + 6 * SIZEOFINT);
+  }
   else {
     context = freeContexts;
 
@@ -7456,13 +7496,15 @@ int* allocateContext(int ID, int parentID) {
 
   setParent(context, parentID);
 
-  return context;
+  return context; 
 }
 
 int* createContext(int ID, int parentID, int* in) {
   int* context;
 
   printIntegerEifles("createContext() with ID: ", ID);
+
+  createdContextAtLeastOnce = 1;
 
   context = allocateContext(ID, parentID);
 
@@ -7490,42 +7532,19 @@ int* findContext(int ID, int* in) {
 }
 
 void switchContext(int* from, int* to) {
-  int tempThread;
-
-  println();
-  print((int*) "switchContext() called!!!");
-  println();
-
   // save machine state
+  setPC(from, pc);
+  setRegHi(from, reg_hi);
+  setRegLo(from, reg_lo);
+  setBreak(from, brk);
 
-  // switch from one process/thread to another
-  //if(to > -1){
-    // we are dealing with threads
-    if(enable_Threads){
-      printIntegerEifles("WE ARE DEALING WITH THREADS", 1);
-
-      tempThread = findContext(from, usedContexts);
-
-      setPC(tempThread, pc);
-      setRegHi(tempThread, reg_hi);
-      setRegLo(tempThread, reg_lo);
-      setBreak(from, brk);
-
-      pc        = getPC(tempThread);
-      registers = getRegs(tempThread);
-      reg_hi    = getRegHi(tempThread);
-      reg_lo    = getRegLo(tempThread);
-      pt        = getPT(to);
-      brk       = getBreak(to);
-    }
-    // we are handling processes -> business as usual
-    else{
-      restoreMachineStateForProcesses(from, to);
-    }
-  //}
-  //else{
-  //  restoreMachineStateForProcesses(from, to);
-  //}
+  // restore machine state
+  pc        = getPC(to);
+  registers = getRegs(to);
+  reg_hi    = getRegHi(to);
+  reg_lo    = getRegLo(to);
+  pt        = getPT(to);
+  brk       = getBreak(to);
 }
 
 void restoreMachineStateForProcesses(int* from, int* to){
@@ -8088,10 +8107,6 @@ int boot(int argc, int* argv) {
     // [EIFLES] if threads are used: only upload binary to code segment of first thread; all threads share this code segment
     if(enable_Threads){
       if(processOrThreadIndex == 0){
-        println();
-        print((int*) "enable_Threads AND processOrThreadIndex == 0");
-        println();
-
         codePT = getPT(usedContexts);
         up_loadBinary(codePT);
       }
