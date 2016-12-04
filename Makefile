@@ -102,7 +102,7 @@ A4-locking:
 	make clean
 	make
 	./selfie -c demo_A4_locking.c selfie.c -o demo_A4_locking.m 
-	./selfie -timeslice 77777 -numthreads 5 -l demo_A4_locking.m -m 32
+	./selfie -timeslice 77777 -numprocesses 5 -l demo_A4_locking.m -m 32
 
 A4-locking-win:
 	make clean-win
@@ -120,4 +120,4 @@ A4-threads-win:
 	make clean-win
 	make
 	selfie.exe -c demo_A4_threads.c selfie.c -o demo_A4_threads.m 
-	selfie.exe -numprocesses 5 -l demo_A4_threads.m -m 32
+	selfie.exe -numthreads 5 -l demo_A4_threads.m -m 32
