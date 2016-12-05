@@ -1,6 +1,6 @@
 int main(){
 
-  int i;
+  	int i;
 
 	initLibrary();
 
@@ -11,8 +11,10 @@ int main(){
 	println();
 
 	sched_yield();
-	print("After sched_yield");
+
 	println();
-	
+	print((int*) "After sched_yield in user program.");
+	println();
+
 	return 1;
 }

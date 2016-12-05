@@ -969,7 +969,7 @@ void selfie_map(int ID, int page, int frame);
 int debug_create = 0;
 int debug_switch = 0;
 int debug_status = 0;
-int debug_delete = 0;
+int debug_delete = 1;
 int debug_map    = 0;
 
 int SYSCALL_ID     = 4901;
@@ -1371,6 +1371,8 @@ int USAGE = 1;
 int numProcessesOrThreads = 1;   // number of concurrent processes or threads to be executed
 int enable_Threads = 0; // flag to ensure that user binaries are executed in threads
 int threadIndex = 0;
+
+int* tempRegs;
 
 int* codePT; // address of the code segment (shared between threads)
 
@@ -7441,7 +7443,6 @@ int* allocateContext(int ID, int parentID) {
   // allocate zeroed memory for general purpose registers
   // TODO: reuse memory
   setRegs(context, zalloc(NUMBEROFREGISTERS * WORDSIZE));
-
   setRegHi(context, 0);
   setRegLo(context, 0);
 
@@ -7450,9 +7451,15 @@ int* allocateContext(int ID, int parentID) {
   if (enable_Threads) {
   	if (threadIndex == 0) { // [EIFLES] first thread gets the whole Pagetable
   		setPT(context, zalloc(VIRTUALMEMORYSIZE / PAGESIZE * WORDSIZE));
+
+      //tempRegs = zalloc(NUMBEROFREGISTERS * WORDSIZE);
+      //setRegs(context, tempRegs);
+      setRegs(context, zalloc(NUMBEROFREGISTERS * WORDSIZE));
   	}
-  	else { // [EIFLES] other threads get reference to it --> code heap shared, Stack segmented
+  	else { // [EIFLES] other threads get reference to it --> code and heap shared, Stack segmented
   		setPT(context, getPT(usedContexts));
+      //setRegs(context, tempRegs);
+      setRegs(context, getRegs(usedContexts));
   	}
   }
   else { // [EIFLES] else case --> processes --> each process gets own PT
@@ -7822,38 +7829,6 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
 
     // assert: fromContext must be in usedContexts (created here)
 
-    // ------------------------------------------------------------
-    if(use_hypster){
-      println();
-      print((int*) "flag use_hypster is activated!!");
-      println();
-    }
-
-    if(is_user_process){
-      println();
-      print((int*) "flag is_user_process is activated!!");
-      println();
-    }
-
-    // println();
-    // print((int*) "current selfie_ID() = ");
-     //printInteger(selfie_ID());
-    // println();
-
-    // println();
-    // print((int*) "current hypster_ID() = ");
-    // printInteger(hypster_ID());
-    // println();
-
-    // currentID = getID(fromContext);
-
-    // println();
-    // print((int*) "current user process ID = ");
-    // printInteger(currentID);
-    // println();
-
-    // ------------------------------------------------------------
-
     if (getParent(fromContext) != selfie_ID()) {
       // switch to parent which is in charge of handling exceptions
       // [EIFLES] However, we need to check if there even exists a parent! Infinite loop without this check!!
@@ -7871,7 +7846,7 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
       exceptionParameter = decodeExceptionParameter(savedStatus);
 
       if (exceptionNumber == EXCEPTION_PAGEFAULT) {
-        //printSimpleStringEifles("EXCEPTION_PAGEFAULT");
+        printSimpleStringEifles("EXCEPTION_PAGEFAULT");
 
         // has problem without new parameters, says: "is_user_process NOT SET"
         // if(checkIfHypsterIsHandlingExceptionOrExit() == NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING){
@@ -7887,7 +7862,10 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
         selfie_map(fromID, exceptionParameter, frame);
       } 
       else if (exceptionNumber == EXCEPTION_EXIT) {
-        //printSimpleStringEifles("EXCEPTION_EXIT");
+        println();
+        print((int*) "exceptionNumber == EXCEPTION_EXIT with context ID = ");
+        printInteger(fromID);
+        println();
 
         // has problem without new parameters, says: "is_user_process NOT SET"
         // if(checkIfHypsterIsHandlingExceptionOrExit() == NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING){
@@ -7906,7 +7884,7 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
         }
       }
       else if (exceptionNumber == EXCEPTION_SCHED_YIELD) {
-        //printSimpleStringEifles("EXCEPTION_SCHED_YIELD");
+        printSimpleStringEifles("EXCEPTION_SCHED_YIELD");
 
         // has problem without new parameters, says: "is_user_process NOT SET"
         // if(checkIfHypsterIsHandlingExceptionOrExit() == NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING){
@@ -7932,7 +7910,7 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
         return -1;
       } 
       else {
-        //printSimpleStringEifles("SOME OTHER EXCEPTION");
+        printSimpleStringEifles("SOME OTHER EXCEPTION");
 
         // has problem without new parameters, says: "is_user_process NOT SET"
         // if(checkIfHypsterIsHandlingExceptionOrExit() == NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING){
@@ -8060,10 +8038,6 @@ int boot(int argc, int* argv) {
       // create duplicate of the initial context on our boot level
       usedContexts = createContext(nextID, selfie_ID(), (int*) 0);
     }
-    	//println();
-    	//print((int*) "getPT(usedContexts) = ");
-    	//printBinary(getPT(usedContexts), 32);
-    	//println();
 
     if(enable_Threads){
       if(threadIndex == 0){
