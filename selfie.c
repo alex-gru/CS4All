@@ -7437,34 +7437,30 @@ int* allocateContext(int ID, int parentID) {
   setPrevContext(context, (int*) 0);
 
   setID(context, ID);
-
   setPC(context, 0);
-
-  // allocate zeroed memory for general purpose registers
-  // TODO: reuse memory
-  setRegs(context, zalloc(NUMBEROFREGISTERS * WORDSIZE));
-  setRegHi(context, 0);
-  setRegLo(context, 0);
 
   // allocate zeroed memory for page table
   // TODO: save and reuse memory for page table
   if (enable_Threads) {
   	if (threadIndex == 0) { // [EIFLES] first thread gets the whole Pagetable
   		setPT(context, zalloc(VIRTUALMEMORYSIZE / PAGESIZE * WORDSIZE));
-
-      //tempRegs = zalloc(NUMBEROFREGISTERS * WORDSIZE);
-      //setRegs(context, tempRegs);
       setRegs(context, zalloc(NUMBEROFREGISTERS * WORDSIZE));
   	}
   	else { // [EIFLES] other threads get reference to it --> code and heap shared, Stack segmented
   		setPT(context, getPT(usedContexts));
-      //setRegs(context, tempRegs);
+      // reference the inititally created regs
       setRegs(context, getRegs(usedContexts));
   	}
   }
   else { // [EIFLES] else case --> processes --> each process gets own PT
- 	 setPT(context, zalloc(VIRTUALMEMORYSIZE / PAGESIZE * WORDSIZE));
+    // allocate zeroed memory for general purpose registers
+    // TODO: reuse memory
+    setRegs(context, zalloc(NUMBEROFREGISTERS * WORDSIZE));
+ 	  setPT(context, zalloc(VIRTUALMEMORYSIZE / PAGESIZE * WORDSIZE));
 	}
+
+  setRegHi(context, 0);
+  setRegLo(context, 0);
 
   // heap starts where it is safe to start
   setBreak(context, maxBinaryLength);
