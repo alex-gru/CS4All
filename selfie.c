@@ -968,8 +968,8 @@ void selfie_map(int ID, int page, int frame);
 
 int debug_create = 0;
 int debug_switch = 0;
-int debug_status = 0;
-int debug_delete = 1;
+int debug_status = 1;
+int debug_delete = 0;
 int debug_map    = 0;
 
 int SYSCALL_ID     = 4901;
@@ -1102,7 +1102,7 @@ int EXCEPTION_SCHED_YIELD        = 8;
 
 int* EXCEPTIONS; // strings representing exceptions
 
-int debug_exception = 0;
+int debug_exception = 1;
 
 // number of instructions from context switch to timer interrupt
 // CAUTION: avoid interrupting any kernel activities, keep TIMESLICE large
@@ -4779,6 +4779,11 @@ void implementExit() {
 
   exitCode = *(registers+REG_A0);
 
+  println();
+  print((int*) "in implementExit() -> exitCode = ");
+  printInteger(exitCode);
+  println();
+
   // exit code must be signed 16-bit integer
   if (exitCode > INT16_MAX)
     exitCode = INT16_MAX;
@@ -7448,15 +7453,15 @@ int* allocateContext(int ID, int parentID) {
   	}
   	else { // [EIFLES] other threads get reference to it --> code and heap shared, Stack segmented
   		setPT(context, getPT(usedContexts));
-      // reference the inititally created regs
+      // reference the initially created regs
       setRegs(context, getRegs(usedContexts));
   	}
   }
   else { // [EIFLES] else case --> processes --> each process gets own PT
     // allocate zeroed memory for general purpose registers
     // TODO: reuse memory
+    setPT(context, zalloc(VIRTUALMEMORYSIZE / PAGESIZE * WORDSIZE));
     setRegs(context, zalloc(NUMBEROFREGISTERS * WORDSIZE));
- 	  setPT(context, zalloc(VIRTUALMEMORYSIZE / PAGESIZE * WORDSIZE));
 	}
 
   setRegHi(context, 0);
@@ -7501,12 +7506,10 @@ int* findContext(int ID, int* in) {
 }
 
 void switchContext(int* from, int* to){
-
-	printSimpleStringEifles("switchContext Called, getPT(from):");
-	println();
+  println();
+	print((int*)" switchContext() called, getPT(from): ");
   printBinary(getPT(from), 32);
-	printSimpleStringEifles("switchContext Called, getPT(to):");
-	println();
+	print(", getPT(to): ");
   printBinary(getPT(to), 32);
   println();
 
@@ -7873,6 +7876,12 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
 
         // [EIFLES] all contexts finished, terminate. 
         if (usedContexts == (int*) 0) {
+
+          println();
+          print((int*) "  exceptionParameter = ");
+          printInteger(exceptionParameter);
+          println();
+
           return exceptionParameter;
         } else {
           // [EIFLES] contexts left
@@ -8128,6 +8137,11 @@ int selfie_run(int engine, int machine, int debugger) {
   }
 
   interpret = 0;
+
+  println();
+  print((int*) "after selfie_run() -> exitCode = ");
+  printInteger(exitCode);
+  println();
 
   return exitCode;
 }
