@@ -5275,6 +5275,7 @@ void implementLock() {
     	print((int*) " already holds the global lock!");
     	println();
   	}
+  	return;
 	}
 
 	if (currentLockedID == initialLockedID) { // lock is available
