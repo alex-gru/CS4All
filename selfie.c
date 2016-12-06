@@ -7449,7 +7449,7 @@ int* allocateContext(int ID, int parentID) {
   if (enable_Threads) {
   	if (threadIndex == 0) { // [EIFLES] first thread gets the whole Pagetable
   		setPT(context, zalloc(VIRTUALMEMORYSIZE / PAGESIZE * WORDSIZE));
-      setRegs(context, zalloc(NUMBEROFREGISTERS * WORDSIZE));
+      //setRegs(context, zalloc(NUMBEROFREGISTERS * WORDSIZE));
   	}
   	else { // [EIFLES] other threads get reference to it --> code and heap shared, Stack segmented
   		setPT(context, getPT(usedContexts));
@@ -7461,14 +7461,14 @@ int* allocateContext(int ID, int parentID) {
     // allocate zeroed memory for general purpose registers
     // TODO: reuse memory
     setPT(context, zalloc(VIRTUALMEMORYSIZE / PAGESIZE * WORDSIZE));
-    setRegs(context, zalloc(NUMBEROFREGISTERS * WORDSIZE));
+    //setRegs(context, zalloc(NUMBEROFREGISTERS * WORDSIZE));
 	}
-
+	setRegs(context, zalloc(NUMBEROFREGISTERS * WORDSIZE));
   setRegHi(context, 0);
   setRegLo(context, 0);
 
   // heap starts where it is safe to start
-  setBreak(context, maxBinaryLength);
+  //setBreak(context, maxBinaryLength);
 
   setParent(context, parentID);
 
@@ -7477,8 +7477,6 @@ int* allocateContext(int ID, int parentID) {
 
 int* createContext(int ID, int parentID, int* in) {
   int* context;
-
-  printIntegerEifles("createContext() with ID: ", ID);
 
   context = allocateContext(ID, parentID);
 
@@ -7507,16 +7505,14 @@ int* findContext(int ID, int* in) {
 
 void switchContext(int* from, int* to){
   println();
-	print((int*)" switchContext() called, getPT(from): ");
-  printBinary(getPT(from), 32);
-	print(", getPT(to): ");
-  printBinary(getPT(to), 32);
+	print((int*)" switchContext() called, currentPC: ");
+  printInteger(pt);
   println();
 
   setPC(from, pc);
   setRegHi(from, reg_hi);
   setRegLo(from, reg_lo);
-  setBreak(from, brk);
+  //setBreak(from, brk);
 
   // restore machine state
   pc        = getPC(to);
@@ -7524,7 +7520,7 @@ void switchContext(int* from, int* to){
   reg_hi    = getRegHi(to);
   reg_lo    = getRegLo(to);
   pt        = getPT(to);
-  brk       = getBreak(to);
+  //brk       = getBreak(to);
 }
 
 void freeContext(int* context) {
