@@ -967,8 +967,8 @@ void selfie_map(int ID, int page, int frame);
 // ------------------------ GLOBAL CONSTANTS -----------------------
 
 int debug_create = 0;
-int debug_switch = 0;
-int debug_status = 1;
+int debug_switch = 1;
+int debug_status = 0;
 int debug_delete = 0;
 int debug_map    = 0;
 
@@ -1371,6 +1371,7 @@ int USAGE = 1;
 int numProcessesOrThreads = 1;   // number of concurrent processes or threads to be executed
 int enable_Threads = 0; // flag to ensure that user binaries are executed in threads
 int threadIndex = 0;
+int THREAD_STACK_SIZE = 10000; // abitrarily chosen stack size for a thread
 
 int* tempRegs;
 
@@ -7465,7 +7466,10 @@ int* allocateContext(int ID, int parentID) {
   setRegLo(context, 0);
 
   // heap starts where it is safe to start
-  setBreak(context, maxBinaryLength);
+  if(enable_Threads == 0){
+    // but only if not using threads, since threads share their heap and thus their brk
+    setBreak(context, maxBinaryLength);
+  }
 
   setParent(context, parentID);
 
@@ -7509,7 +7513,7 @@ void switchContext(int* from, int* to){
   setPC(from, pc);
   setRegHi(from, reg_hi);
   setRegLo(from, reg_lo);
-  setBreak(from, brk);
+  //setBreak(from, brk);
 
   // restore machine state
   pc        = getPC(to);
@@ -7517,7 +7521,12 @@ void switchContext(int* from, int* to){
   reg_hi    = getRegHi(to);
   reg_lo    = getRegLo(to);
   pt        = getPT(to);
-  brk       = getBreak(to);
+  // brk       = getBreak(to);
+
+  if(enable_Threads == 0){
+    setBreak(from, brk);
+    brk = getBreak(to);
+  }
 }
 
 void freeContext(int* context) {
@@ -7654,9 +7663,14 @@ void up_loadArguments(int* table, int argc, int* argv) {
   int i_argc;
   int i_vargv;
 
+  int* tempContext;
+  int threadStackSize;
+
   // [EIFLES] If threads are enabled, share Stack with offset
   if (enable_Threads) {
-  	  SP = VIRTUALMEMORYSIZE - (threadIndex * 50 * WORDSIZE) - WORDSIZE;
+  	//SP = VIRTUALMEMORYSIZE - (threadIndex * 50 * WORDSIZE) - WORDSIZE;
+    threadStackSize = VIRTUALMEMORYSIZE - WORDSIZE - threadIndex * THREAD_STACK_SIZE;
+    SP = threadStackSize;
   }
   else {
   	// arguments are pushed onto stack which starts at highest virtual address
@@ -7701,7 +7715,17 @@ void up_loadArguments(int* table, int argc, int* argv) {
   mapAndStoreVirtualMemory(table, SP, vargv);
 
   // store stack pointer at highest virtual address for binary to retrieve
-  mapAndStoreVirtualMemory(table, VIRTUALMEMORYSIZE - WORDSIZE, SP);
+  if(enable_Threads){
+    mapAndStoreVirtualMemory(table, threadStackSize, SP);
+  }
+  else{
+    mapAndStoreVirtualMemory(table, VIRTUALMEMORYSIZE - WORDSIZE, SP);
+  }
+
+  println();
+  print((int*) "up_loadArguments() --> SP = ");
+  printInteger(SP);
+  println();
 }
 
 void mapUnmappedPages(int* table) {
@@ -7869,12 +7893,6 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
 
         // [EIFLES] all contexts finished, terminate. 
         if (usedContexts == (int*) 0) {
-
-          println();
-          print((int*) "  exceptionParameter = ");
-          printInteger(exceptionParameter);
-          println();
-
           return exceptionParameter;
         } else {
           // [EIFLES] contexts left
@@ -8039,6 +8057,7 @@ int boot(int argc, int* argv) {
 
     if(enable_Threads){
       if(threadIndex == 0){
+        // if using threads: upload binary only once for all threads (all other threads reference to it)
         up_loadBinary(getPT(usedContexts));
       }
     }
