@@ -900,7 +900,7 @@ int debug_open   = 0;
 //[EIFLES] debugging for shared memory processing
 int debug_shm    = 0;   
 // [EIFLES] debugging for locking mechansim
-int debug_locks  = 0;
+int debug_locks  = 1;
 
 int debug_malloc = 0;
 
@@ -967,9 +967,9 @@ void selfie_map(int ID, int page, int frame);
 // ------------------------ GLOBAL CONSTANTS -----------------------
 
 int debug_create = 0;
-int debug_switch = 1;
+int debug_switch = 0;
 int debug_status = 0;
-int debug_delete = 1;
+int debug_delete = 0;
 int debug_map    = 0;
 
 // [EIFLES]
@@ -1105,7 +1105,7 @@ int EXCEPTION_SCHED_YIELD        = 8;
 
 int* EXCEPTIONS; // strings representing exceptions
 
-int debug_exception = 1;
+int debug_exception = 0;
 
 // number of instructions from context switch to timer interrupt
 // CAUTION: avoid interrupting any kernel activities, keep TIMESLICE large
@@ -5200,7 +5200,6 @@ void implementShmRead() {
 
 // ---------------------
 // [EIFLES] Assignment 4
-// TODO: ADAPT ALL METHODS!!!!
 
 void emitGetPID() {
 
@@ -5254,10 +5253,13 @@ void implementGetPID() {
 }
 
 void implementLock() {
-
 	int processID;
 
+	// re-set cycles to 0 to avoid timer interrupt while setting the lock (--> Atomic)
+	cycles = 0;
+	
 	processID = *(registers+REG_A0);
+
 
 	if (debug_locks) {
   		print((int*) "Lock() called by ");
@@ -5314,7 +5316,11 @@ void implementLock() {
 }
 
 void implementUnlock() {
+	
 	int processID;
+
+	// re-set cycles to 0 to avoid timer interrupt while setting the lock (--> Atomic)
+	cycles = 0;
 
 	processID = *(registers+REG_A0);
 
@@ -7785,10 +7791,10 @@ void up_loadArguments(int* table, int argc, int* argv) {
     mapAndStoreVirtualMemory(table, VIRTUALMEMORYSIZE - WORDSIZE, SP);
   }
 
-  println();
-  print((int*) "up_loadArguments() --> SP = ");
-  printInteger(SP);
-  println();
+  //println();
+  //print((int*) "up_loadArguments() --> SP = ");
+  //printInteger(SP);
+  //println();
 
   //tempContext = findContext(threadIndex, usedContexts);
   //*(getRegs(tempContext)+ REG_SP) =SP;
