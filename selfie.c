@@ -969,8 +969,11 @@ void selfie_map(int ID, int page, int frame);
 int debug_create = 0;
 int debug_switch = 1;
 int debug_status = 0;
-int debug_delete = 0;
+int debug_delete = 1;
 int debug_map    = 0;
+
+// [EIFLES]
+int debug_switch_context = 0;
 
 int SYSCALL_ID     = 4901;
 int SYSCALL_CREATE = 4902;
@@ -1262,7 +1265,7 @@ int  getRegLo(int* context)       { return        *(context + 6); }
 int* getPT(int* context)          { return (int*) *(context + 7); }
 int  getBreak(int* context)       { return        *(context + 8); }
 int  getParent(int* context)      { return        *(context + 9); }
-int* getSGMTT(int* context)       { return (int*) *(context + 10); }
+//int* getSGMTT(int* context)       { return (int*) *(context + 10); }
 
 void setNextContext(int* context, int* next) { *context       = (int) next; }
 void setPrevContext(int* context, int* prev) { *(context + 1) = (int) prev; }
@@ -1274,7 +1277,7 @@ void setRegLo(int* context, int reg_lo)      { *(context + 6) = reg_lo; }
 void setPT(int* context, int* pt)            { *(context + 7) = (int) pt; }
 void setBreak(int* context, int brk)         { *(context + 8) = brk; }
 void setParent(int* context, int id)         { *(context + 9) = id; }
-void setSGMTT(int* context, int* sgmtt)      { *(context + 10) = (int) sgmtt; }
+//void setSGMTT(int* context, int* sgmtt)      { *(context + 10) = (int) sgmtt; }
 
 // -----------------------------------------------------------------
 // -------------------------- MICROKERNEL --------------------------
@@ -1326,6 +1329,10 @@ void mapUnmappedPages(int* table);
 void down_mapPageTable(int* context);
 
 int runUntilExitWithoutExceptionHandling(int toID);
+
+// [EIFLES]
+void printAllContexts();
+
 int runOrHostUntilExitWithPageFaultHandling(int toID);
 
 int bootminmob(int argc, int* argv, int machine);
@@ -4780,11 +4787,6 @@ void implementExit() {
 
   exitCode = *(registers+REG_A0);
 
-  println();
-  print((int*) "in implementExit() -> exitCode = ");
-  printInteger(exitCode);
-  println();
-
   // exit code must be signed 16-bit integer
   if (exitCode > INT16_MAX)
     exitCode = INT16_MAX;
@@ -7453,6 +7455,11 @@ int* allocateContext(int ID, int parentID) {
   		setPT(context, zalloc(VIRTUALMEMORYSIZE / PAGESIZE * WORDSIZE));
   	}
   	else { // [EIFLES] other threads get reference to it --> code and heap shared, Stack segmented
+      println();
+      print((int*) "getPT(usedContexts) = ");
+      printHexadecimal(getPT(usedContexts), 8);
+      println();
+
   		setPT(context, getPT(usedContexts));
   	}
   }
@@ -7505,15 +7512,39 @@ int* findContext(int ID, int* in) {
 }
 
 void switchContext(int* from, int* to){
-  println();
-	print((int*)"switchContext() called --> currentPC = ");
-  printInteger(pc);
-  println();
-
+  // [EIFLES] note: save machine state of current thread/process before switching
   setPC(from, pc);
   setRegHi(from, reg_hi);
   setRegLo(from, reg_lo);
   //setBreak(from, brk);
+  if(debug_switch_context){
+    println();
+    print((int*) "==== BEFORE switch context ====");
+    println();
+    print((int*) "  from = ");
+    printInteger(getID(from));
+    println();
+    print((int*) "  toID = ");
+    printInteger(getID(to));
+    println();
+    print((int*) "  pc = ");
+    printInteger(pc);
+    println();
+    print((int*) "  registers = ");
+    printHexadecimal(registers,8);
+    println();
+    print((int*) "  reg_hi = ");
+    printInteger(reg_hi);
+    println();
+    print((int*) "  reg_lo = ");
+    printInteger(reg_lo);
+    println();
+    print((int*) "  pt = ");
+    printHexadecimal(pt,8);
+    println();
+    print((int*) "==== ==== ==== ==== ==== ====");
+    println();
+  }
 
   // restore machine state
   pc        = getPC(to);
@@ -7524,9 +7555,41 @@ void switchContext(int* from, int* to){
   // brk       = getBreak(to);
 
   if(enable_Threads == 0){
+    // save brk of current thread/process
     setBreak(from, brk);
+    // restore brk point of new thread/process (switch to other brk)
     brk = getBreak(to);
   }
+
+  if(debug_switch_context){
+    println();
+    print((int*) "==== AFTER switch context ====");
+    println();
+    print((int*) "  from = ");
+    printInteger(getID(from));
+    println();
+    print((int*) "  toID = ");
+    printInteger(getID(to));
+    println();
+    print((int*) "  pc = ");
+    printInteger(pc);
+    println();
+    print((int*) "  registers = ");
+    printHexadecimal(registers,8);
+    println();
+    print((int*) "  reg_hi = ");
+    printInteger(reg_hi);
+    println();
+    print((int*) "  reg_lo = ");
+    printInteger(reg_lo);
+    println();
+    print((int*) "  pt = ");
+    printHexadecimal(pt,8);
+    println();
+    print((int*) "==== ==== ==== ==== ==== ====");
+    println();
+  }
+
 }
 
 void freeContext(int* context) {
@@ -7726,6 +7789,9 @@ void up_loadArguments(int* table, int argc, int* argv) {
   print((int*) "up_loadArguments() --> SP = ");
   printInteger(SP);
   println();
+
+  //tempContext = findContext(threadIndex, usedContexts);
+  //*(getRegs(tempContext)+ REG_SP) =SP;
 }
 
 void mapUnmappedPages(int* table) {
@@ -7881,6 +7947,8 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
         println();
         print((int*) "exceptionNumber == EXCEPTION_EXIT with context ID = ");
         printInteger(fromID);
+        print((int*) " and exceptionParameter = ");
+        printInteger(exceptionParameter);
         println();
 
         // has problem without new parameters, says: "is_user_process NOT SET"
@@ -7907,7 +7975,18 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
         //   return -1;
         // }
 
-        toID = runScheduler(fromID);
+        println();
+        printAllContexts();
+        println();
+
+        if(enable_Threads){
+          toID = fromID; // works in any case
+        }
+        else{
+          toID = runScheduler(fromID);  // careful! doesn't work with threads
+        }
+        //toID = roundRobinScheduler(fromID);  // experimental! TODO
+
         cycles = 0;
         //println();
         //print((int*) "[EXCEPTION_SCHED_YIELD, next_pid: ");
@@ -8026,6 +8105,8 @@ int boot(int argc, int* argv) {
   int nextID;
   int currentIndex;
 
+  int* firstThreadContext;
+
   print(selfieName);
   print((int*) ": this is selfie's ");
   if (mipster)
@@ -8058,6 +8139,7 @@ int boot(int argc, int* argv) {
     if(enable_Threads){
       if(threadIndex == 0){
         // if using threads: upload binary only once for all threads (all other threads reference to it)
+        //firstThreadContext = getPT(usedContexts);
         up_loadBinary(getPT(usedContexts));
       }
     }
@@ -8204,6 +8286,34 @@ int runScheduler(int thisID) {
       return getID(current);
     }
     return getID(thisContext);
+  }
+}
+
+// [EIFLES] round robin scheduler Version 2 (version 1 caused problems with threads)
+int roundRobinScheduler(int fromID){
+  int *currentContext;
+  int *nextContext;
+  int *prevContext;
+  
+  currentContext = findContext(fromID, usedContexts);
+  nextContext = getNextContext(currentContext);
+
+  if (nextContext != (int *) 0) {
+    return getID(nextContext);
+  }
+  else{
+    println();
+    print((int*) "  roundRobinScheduler() --> nextContext == 0! --> return usedContexts (= head of list)");
+    println();
+    // case 1: at end of list -> go back to beginning
+    //prevContext = getPrevContext(currentContext);
+    //while(prevContext != (int*) 0){
+    //  currentContext = prevContext;
+    //  prevContext = getPrevContext(currentContext);
+    //}
+    //return getID(currentContext);
+
+    return getID(usedContexts);
   }
 }
 
