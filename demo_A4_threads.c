@@ -1,4 +1,4 @@
-int main(){
+void main(){
   	int i;
 
 	initLibrary();
@@ -11,5 +11,11 @@ int main(){
 
 	sched_yield();
 
-	return 1;
+	println();
+	printInteger(44);
+	println();
+	printInteger(55);
+	println();
+
+	//return 1;
 }

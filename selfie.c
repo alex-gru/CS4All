@@ -967,9 +967,9 @@ void selfie_map(int ID, int page, int frame);
 // ------------------------ GLOBAL CONSTANTS -----------------------
 
 int debug_create = 0;
-int debug_switch = 0;
+int debug_switch = 1;
 int debug_status = 0;
-int debug_delete = 0;
+int debug_delete = 1;
 int debug_map    = 0;
 
 // [EIFLES]
@@ -7518,11 +7518,6 @@ int* findContext(int ID, int* in) {
 }
 
 void switchContext(int* from, int* to){
-  // [EIFLES] note: save machine state of current thread/process before switching
-  setPC(from, pc);
-  setRegHi(from, reg_hi);
-  setRegLo(from, reg_lo);
-  //setBreak(from, brk);
   if(debug_switch_context){
     println();
     print((int*) "==== BEFORE switch context ====");
@@ -7551,6 +7546,11 @@ void switchContext(int* from, int* to){
     print((int*) "==== ==== ==== ==== ==== ====");
     println();
   }
+  // [EIFLES] note: save machine state of current thread/process before switching
+  setPC(from, pc);
+  setRegHi(from, reg_hi);
+  setRegLo(from, reg_lo);
+  //setBreak(from, brk);
 
   // restore machine state
   pc        = getPC(to);
@@ -7689,10 +7689,6 @@ void pfree(int* frame) {
 
 void up_loadBinary(int* table) {
   int vaddr;
-
-  //println();
-  //print((int*) "up_loadBinary() called!!!");
-  //println();
 
   // binaries start at lowest virtual address
   vaddr = 0;
@@ -7920,7 +7916,6 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
     if (getParent(fromContext) != selfie_ID()) {
       // switch to parent which is in charge of handling exceptions
       // [EIFLES] However, we need to check if there even exists a parent! Infinite loop without this check!!
-
       toID = getParent(fromContext);
       if(findContext(toID, usedContexts) == (int*) 0) {
         return 0;
@@ -7950,12 +7945,7 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
         selfie_map(fromID, exceptionParameter, frame);
       } 
       else if (exceptionNumber == EXCEPTION_EXIT) {
-        println();
-        print((int*) "exceptionNumber == EXCEPTION_EXIT with context ID = ");
-        printInteger(fromID);
-        print((int*) " and exceptionParameter = ");
-        printInteger(exceptionParameter);
-        println();
+        printSimpleStringEifles("EXCEPTION_EXIT");
 
         // has problem without new parameters, says: "is_user_process NOT SET"
         // if(checkIfHypsterIsHandlingExceptionOrExit() == NO_HYPSTER_AVAILABLE_FOR_EXCEPTION_HANDLING){
@@ -7963,12 +7953,19 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
         // }
 
         doDelete(toID);
+
         cycles = 0;   // [EIFLES] reset cycles, so the next process gets the full TIMESLICE (fair scheduling)
+
+        println();
+        print((int*) "  exc_exit -> printAllContexts(): ");
+        printAllContexts();
+        println();
 
         // [EIFLES] all contexts finished, terminate. 
         if (usedContexts == (int*) 0) {
           return exceptionParameter;
-        } else {
+        } 
+        else {
           // [EIFLES] contexts left
           toID = getID(usedContexts);
         }
@@ -7982,25 +7979,25 @@ int runOrHostUntilExitWithPageFaultHandling(int toID) {
         // }
 
         println();
+        print((int*) "  sched_yield -> printAllContexts(): ");
         printAllContexts();
+        print((int*) "  , fromID = ");
+        printInteger(fromID);
         println();
 
         if(enable_Threads){
-          toID = fromID; // works in any case
+          //toID = fromID; // works in any case
+          toID = roundRobinScheduler(fromID);  // experimental! TODO
         }
         else{
           toID = runScheduler(fromID);  // careful! doesn't work with threads
         }
-        //toID = roundRobinScheduler(fromID);  // experimental! TODO
 
         cycles = 0;
-        //println();
-        //print((int*) "[EXCEPTION_SCHED_YIELD, next_pid: ");
-        //printInteger(toID);
-        //print((int*) "]");
-        //println();
+
       }
       else if (exceptionNumber != EXCEPTION_TIMER) {
+        printSimpleStringEifles("exceptionNumber != EXCEPTION_TIMER");
         print(binaryName);
         print((int*) ": context ");
         printInteger(getID(fromContext));
@@ -8300,27 +8297,32 @@ int roundRobinScheduler(int fromID){
   int *currentContext;
   int *nextContext;
   int *prevContext;
+
+  int *returnID;
   
   currentContext = findContext(fromID, usedContexts);
   nextContext = getNextContext(currentContext);
 
   if (nextContext != (int *) 0) {
-    return getID(nextContext);
+    returnID = getID(nextContext);
   }
   else{
     println();
     print((int*) "  roundRobinScheduler() --> nextContext == 0! --> return usedContexts (= head of list)");
     println();
-    // case 1: at end of list -> go back to beginning
-    //prevContext = getPrevContext(currentContext);
-    //while(prevContext != (int*) 0){
-    //  currentContext = prevContext;
-    //  prevContext = getPrevContext(currentContext);
+    //if (fromID == getID(currentContext)) {
+    //  returnID = getID(usedContexts);
     //}
-    //return getID(currentContext);
+    //returnID = fromID;
 
-    return getID(usedContexts);
+    returnID = getID(usedContexts);
   }
+
+  println();
+  print((int*) "  returnID = ");
+  printInteger(returnID);
+  println();
+  return returnID;
 }
 
 // -----------------------------------------------------------------

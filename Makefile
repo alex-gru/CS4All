@@ -114,7 +114,8 @@ A4-threads:
 	make clean
 	make
 	./selfie -c demo_A4_threads.c selfie.c -o demo_A4_threads.m 
-	./selfie -timeslice 77777 -numthreads 5 -l demo_A4_threads.m -m 32
+	#./selfie -timeslice 77777 -numthreads 5 -l demo_A4_threads.m -m 32
+	./selfie -numthreads 5 -l demo_A4_threads.m -m 32
 
 A4-threads-win:
 	make clean-win
