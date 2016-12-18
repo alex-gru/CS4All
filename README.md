@@ -1,4 +1,4 @@
-# SWS Assignments 1-3
+# SWS Assignments 0, 1, 2, 3
 ###by Team Eifles
 
 Go to [@Releases/Tags](https://github.com/alex-gru/CS4All/releases) to find the corresponding submissions for the assignments. 
